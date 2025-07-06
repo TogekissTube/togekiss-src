@@ -13,6 +13,8 @@ SCREEN_BIN = $(BUILD_DIR)/screen.o
 LOADER_BIN = $(BUILD_DIR)/loader.o
 GDT_BIN = $(BUILD_DIR)/gdt.o
 GDTA_BIN = $(BUILD_DIR)/gdta.o
+IDT_BIN = $(BUILD_DIR)/idt.o
+IDTA_BIN = $(BUILD_DIR)/idta.o
 KERNEL_ELF = $(BUILD_DIR)/kernel.elf
 
 # Compiler and flags
@@ -29,6 +31,8 @@ KERNEL_SRC = $(KERNEL_DIR)/kernel.c
 SCREEN_SRC = $(DRIVERS_DIR)/screen.c
 GDT_SRC = $(ARCH_DIR)/gdt.c
 GDTA_SRC = $(ARCH_DIR)/gdta.asm
+IDT_SRC = $(ARCH_DIR)/idt.c
+IDTA_SRC = $(ARCH_DIR)/idta.asm
 
 .PHONY: all clean iso
 
@@ -59,10 +63,20 @@ $(GDTA_BIN): $(GDTA_SRC)
 	@mkdir -p $(BUILD_DIR)
 	$(AS) $(ASFLAGS) -o $@ $<
 
-# Link the kernel (now with all objects)
-$(KERNEL_ELF): $(LOADER_BIN) $(KERNEL_BIN) $(SCREEN_BIN) $(GDT_BIN) $(GDTA_BIN) link.ld
+# Build x86 idt object
+$(IDT_BIN): $(IDT_SRC)
 	@mkdir -p $(BUILD_DIR)
-	$(LD) $(LDFLAGS) -o $@ $(LOADER_BIN) $(KERNEL_BIN) $(SCREEN_BIN) $(GDT_BIN) $(GDTA_BIN)
+	$(CC) $(CFLAGS) -o $@ $<
+
+# Build x86 idta asm object
+$(IDTA_BIN): $(IDTA_SRC)
+	@mkdir -p $(BUILD_DIR)
+	$(AS) $(ASFLAGS) -o $@ $<
+
+# Link the kernel (now with all objects)
+$(KERNEL_ELF): $(LOADER_BIN) $(KERNEL_BIN) $(SCREEN_BIN) $(GDT_BIN) $(GDTA_BIN) $(IDT_BIN) $(IDTA_BIN) link.ld
+	@mkdir -p $(BUILD_DIR)
+	$(LD) $(LDFLAGS) -o $@ $(LOADER_BIN) $(KERNEL_BIN) $(SCREEN_BIN) $(GDT_BIN) $(GDTA_BIN) $(IDT_BIN) $(IDTA_BIN)
 
 iso: $(KERNEL_ELF)
 	@mkdir -p $(ISO_DIR)/boot/grub
