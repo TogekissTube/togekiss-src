@@ -2,6 +2,7 @@
 BOOT_DIR = boot
 KERNEL_DIR = kernel
 DRIVERS_DIR = $(KERNEL_DIR)/drivers
+ARCH_DIR = $(KERNEL_DIR)/arch/x86
 ISO_DIR = iso
 BUILD_DIR = build
 
@@ -10,6 +11,8 @@ ISO_NAME = togekissos.iso
 KERNEL_BIN = $(BUILD_DIR)/kernel.o
 SCREEN_BIN = $(BUILD_DIR)/screen.o
 LOADER_BIN = $(BUILD_DIR)/loader.o
+GDT_BIN = $(BUILD_DIR)/gdt.o
+GDTA_BIN = $(BUILD_DIR)/gdta.o
 KERNEL_ELF = $(BUILD_DIR)/kernel.elf
 
 # Compiler and flags
@@ -24,6 +27,8 @@ LDFLAGS = -m elf_i386 -T link.ld
 LOADER_SRC = $(BOOT_DIR)/loader.s
 KERNEL_SRC = $(KERNEL_DIR)/kernel.c
 SCREEN_SRC = $(DRIVERS_DIR)/screen.c
+GDT_SRC = $(ARCH_DIR)/gdt.c
+GDTA_SRC = $(ARCH_DIR)/gdta.asm
 
 .PHONY: all clean iso
 
@@ -44,13 +49,28 @@ $(SCREEN_BIN): $(SCREEN_SRC)
 	@mkdir -p $(BUILD_DIR)
 	$(CC) $(CFLAGS) -o $@ $<
 
-# Link the kernel (now with screen.o)
-$(KERNEL_ELF): $(LOADER_BIN) $(KERNEL_BIN) $(SCREEN_BIN) link.ld
+# Build x86 gdt object
+$(GDT_BIN): $(GDT_SRC)
 	@mkdir -p $(BUILD_DIR)
-	$(LD) $(LDFLAGS) -o $@ $(LOADER_BIN) $(KERNEL_BIN) $(SCREEN_BIN)
+	$(CC) $(CFLAGS) -o $@ $<
+
+# Build x86 gdta asm object
+$(GDTA_BIN): $(GDTA_SRC)
+	@mkdir -p $(BUILD_DIR)
+	$(AS) $(ASFLAGS) -o $@ $<
+
+# Link the kernel (now with all objects)
+$(KERNEL_ELF): $(LOADER_BIN) $(KERNEL_BIN) $(SCREEN_BIN) $(GDT_BIN) $(GDTA_BIN) link.ld
+	@mkdir -p $(BUILD_DIR)
+	$(LD) $(LDFLAGS) -o $@ $(LOADER_BIN) $(KERNEL_BIN) $(SCREEN_BIN) $(GDT_BIN) $(GDTA_BIN)
 
 iso: $(KERNEL_ELF)
-	grub-mkrescue -o $(ISO_NAME) $(ISO_DIR)
+	@mkdir -p $(ISO_DIR)/boot/grub
+	cp $(KERNEL_ELF) $(ISO_DIR)/boot/kernel.elf
+	echo 'set timeout=0' > $(ISO_DIR)/boot/grub/grub.cfg
+	echo 'set default=0' >> $(ISO_DIR)/boot/grub/grub.cfg
+	echo 'menuentry "TogekissOS" { multiboot /boot/kernel.elf }' >> $(ISO_DIR)/boot/grub/grub.cfg
+	grub-mkrescue -o $(ISO_DIR)/$(ISO_NAME) $(ISO_DIR)
 
 clean:
-	rm -rf $(BUILD_DIR) togekissos.iso
+	rm -rf $(BUILD_DIR) $(ISO_DIR)/boot/kernel.elf $(ISO_DIR)/boot/grub/grub.cfg $(ISO_DIR)/$(ISO_NAME)
