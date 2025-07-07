@@ -18,6 +18,4 @@ void screen_clear();
 
 void screen_write(char *c);
 
-static void scroll();
-
 #endif
