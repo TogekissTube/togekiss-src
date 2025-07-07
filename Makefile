@@ -20,7 +20,7 @@ KERNEL_ELF = $(BUILD_DIR)/kernel.elf
 # Compiler and flags
 AS = nasm
 ASFLAGS = -f elf32
-CC = gcc
+CC = gcc -g -Wall -Wextra -Werror
 CFLAGS = -m32 -ffreestanding -Wall -Wextra -nostdlib -c -I include/
 LD = ld
 LDFLAGS = -m elf_i386 -T link.ld
